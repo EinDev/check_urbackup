@@ -1,5 +1,6 @@
 # !/usr/bin/env python3.8
 # Written By: Xtek
+# Based on: tbaror/check_urbackup by Tal Bar-Or
 # Created - 21/12/2016
 # check_urbackup for backup status
 # Ver 0.3import urbackup_api
@@ -105,7 +106,7 @@ if args.host or args.user or args.password:
 
 
 elif args.version:
-    print('1.1 Urback Check, Written By: Xtek')
+    print('1.1 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or')
     sys.exit()
 else:
     print("please run check --host <IP OR HOSTNAME> --user <username> --password <password>" + '\n or use --help')
