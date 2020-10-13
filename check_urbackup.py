@@ -18,7 +18,7 @@ import argparse
 
 ClientPrint = ""
 GlobalStatus = []
-Globelstat = ""
+GlobalStat = ""
 
 
 def Statuscheck(client):
@@ -30,7 +30,7 @@ def Statuscheck(client):
 
     if not client["file_ok"] and not client["file_disabled"]:
         file_ok = False
-        file_str = "<b>No recent backup</b>"
+        file_str = "No recent backup"
     elif client["file_ok"]:
         file_ok = True
         file_str = "OK"
@@ -40,7 +40,7 @@ def Statuscheck(client):
 
     if not client["image_ok"] and not client["image_disabled"]:
         image_ok = False
-        image_str = "<b>No recent backup</b>"
+        image_str = "No recent backup"
     elif client["image_ok"]:
         image_ok = True
         image_str = "OK"
@@ -66,15 +66,15 @@ def Statuscheck(client):
         else:
             client_status = "Critical"
     if client_status != "OK":
-        ClientPrint += f"HostName: {client_name}, Online: {client_online}, Status: {client_status}"
+        ClientPrint += f"<b>HostName: {client_name}</b>, Online: {client_online}"
         if not file_ok or not image_ok:
             ClientPrint += ", "
         if not file_ok:
-            ClientPrint += f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}"
+            ClientPrint += f"Last Filebackup: {last_file_backup_str}, <b>Status Filebackup: {file_str}</b>"
             if not image_ok:
                 ClientPrint += ", "
         if not image_ok:
-            ClientPrint += f"LastImageBackup: {last_image_backup_str}, ImageStatus: {image_str}"
+            ClientPrint += f"Last Imagebackup: {last_image_backup_str}, <b>Status Imagebackup: {image_str}</b>"
     return client_status
 
 
@@ -91,19 +91,16 @@ if args.host or args.user or args.password:
         clients = server.get_status()
         for client in clients:
             GlobalStatus.append(Statuscheck(client))
-            Globelstat = set(GlobalStatus)
+            GlobalStat = set(GlobalStatus)
         while True:
-            if "Critical" in Globelstat:
-                # print(Globelstat)
+            if "Critical" in GlobalStat:
                 print("CRITICAL: " + ClientPrint)
                 sys.exit(2)
-            elif "Warning" in Globelstat:
-                # print(Globelstat)
+            elif "Warning" in GlobalStat:
                 print("WARNING: " + ClientPrint)
                 print(ClientPrint)
                 sys.exit(1)
-            elif "OK" in Globelstat:
-                # print(Globelstat)
+            elif "OK" in GlobalStat:
                 print("OK")
                 sys.exit(0)
             else:
