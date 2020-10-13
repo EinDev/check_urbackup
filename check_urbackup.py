@@ -1,4 +1,4 @@
-# !/usr/bin/env python3
+# !/usr/bin/env python3.8
 # Written By:Tal Bar-Or'
 # Created - 21/12/2016
 # check_urbackup for backup status
@@ -9,6 +9,7 @@ import urbackup_api
 import datetime
 import sys
 import argparse
+import json
 
 ClientPrint = ""
 GlobalStatus = []
@@ -17,42 +18,54 @@ Globelstat = ""
 
 def Statuscheck(client):
     global ClientPrint
-    ClientStatus = ""
-    if client["delete_pending"] != 0 and client["file_ok"] == True and client["online"] == True:
-        ClientStatus = "OK"
-        ClientPrint += "HostName:" + client[
-            "name"] + ", ClintStatus:Online" + ", LastBackup:" + datetime.datetime.fromtimestamp(
-            client["lastbackup"]).strftime("%x %X") \
-                       + ", File_back_statusclient:OK" + ", Status:OK" + '\n'
+    delete_pending = client["delete_pending"] == 0
+    if "file_disabled" not in client:
+        client["file_disabled"] = False
+    if "image_disabled" not in client:
+        client["image_disabled"] = False
 
-        return ClientStatus
+    if not client["file_ok"] and not client["file_disabled"]:
+        file_ok = False
+        file_str = "Error"
+    elif client["file_ok"]:
+        file_ok = True
+        file_str = "OK"
+    else:
+        file_ok = False
+        file_str = "Disabled"
 
-    elif client["delete_pending"] != 0 and client["file_ok"] != True and client["online"] == True:
-        ClientStatus = "Critical"
+    if not client["image_ok"] and not client["image_disabled"]:
+        image_ok = False
+        image_str = "Error"
+    elif client["image_ok"]:
+        image_ok = True
+        image_str = "OK"
+    else:
+        image_ok = False
+        image_str = "Disabled"
 
-        ClientPrint += "HostName:" + client[
-            "name"] + ", ClintStatus:Online" + ", LastBackup:" + datetime.datetime.fromtimestamp(
-            client["lastbackup"]).strftime("%x %X") \
-                       + ", File_back_statusclient:Critical" + ", Status:Critical" + '\n'
-        return ClientStatus
+    client_online = client["online"]
+    client_name = client["name"]
+    last_file_backup = datetime.datetime.fromtimestamp(client["lastbackup"])
+    last_file_backup_str = last_file_backup.strftime("%x %X")
+    last_image_backup = datetime.datetime.fromtimestamp(client["lastbackup_image"])
+    last_image_backup_str = last_image_backup.strftime("%x %X")
 
-    elif client["delete_pending"] != 0 and client["file_ok"] != True and client["online"] != True:
-        ClientStatus = "Critical"
-        ClientPrint += "HostName:" + client[
-            "name"] + ", ClintStatus:Down" + ", LastBackup:" + datetime.datetime.fromtimestamp(
-            client["lastbackup"]).strftime("%x %X") \
-                       + ", File_back_statusclient:Critical" + ", Status:Critical" + '\n'
+    if not client_online:
+        if file_ok and image_ok:
+            client_status = "Warning"
+        else:
+            client_status = "Critical"
+    else:
+        if file_ok and image_ok:
+            client_status = "OK"
+        else:
+            client_status = "Critical"
 
-        return ClientStatus
-
-    elif client["delete_pending"] != 0 and client["file_ok"] == True and client["online"] != True:
-        ClientStatus = "Warning"
-        ClientPrint += "HostName:" + client[
-            "name"] + ", ClintStatus:Down" + ", LastBackup:" + datetime.datetime.fromtimestamp(
-            client["lastbackup"]).strftime("%x %X") \
-                       + ", File_back_statusclient:OK" + ", Status:Warning" + '\n'
-
-        return ClientStatus
+    ClientPrint += f"HostName: {client_name}, Online: {client_online}, Status: {client_status}, " \
+                   f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}" \
+                   f"LastImageBackup: {last_image_backup_str}, ImageStatus: {image_str}\n"
+    return client_status
 
 
 parser = argparse.ArgumentParser()
@@ -86,9 +99,7 @@ if args.host or args.user or args.password:
                 print("UNKOWN")
                 break
         print(ClientPrint)
-
     except Exception as e:
-
         print("Error Occured: ", e)
 
 
