@@ -1,4 +1,4 @@
-# !/usr/bin/env python3.8
+#!/usr/bin/env python3.8
 # Written By: Timon Michel (Xtek)
 # Based on: tbaror/check_urbackup by Tal Bar-Or
 # Created - 21/12/2016
