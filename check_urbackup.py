@@ -26,7 +26,7 @@ def Statuscheck(client):
 
     if not client["file_ok"] and not client["file_disabled"]:
         file_ok = False
-        file_str = "Error"
+        file_str = "<b>No recent backup</b>"
     elif client["file_ok"]:
         file_ok = True
         file_str = "OK"
@@ -36,7 +36,7 @@ def Statuscheck(client):
 
     if not client["image_ok"] and not client["image_disabled"]:
         image_ok = False
-        image_str = "Error"
+        image_str = "<b>No recent backup</b>"
     elif client["image_ok"]:
         image_ok = True
         image_str = "OK"
@@ -63,7 +63,7 @@ def Statuscheck(client):
             client_status = "Critical"
     if client_status != "OK":
         ClientPrint += f"HostName: {client_name}, Online: {client_online}, Status: {client_status}, " \
-                       f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}" \
+                       f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}, " \
                        f"LastImageBackup: {last_image_backup_str}, ImageStatus: {image_str}\n"
     return client_status
 
