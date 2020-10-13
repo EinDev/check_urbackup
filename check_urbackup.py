@@ -31,7 +31,7 @@ def Statuscheck(client):
         file_ok = True
         file_str = "OK"
     else:
-        file_ok = False
+        file_ok = True
         file_str = "Disabled"
 
     if not client["image_ok"] and not client["image_disabled"]:
@@ -41,7 +41,7 @@ def Statuscheck(client):
         image_ok = True
         image_str = "OK"
     else:
-        image_ok = False
+        image_ok = True
         image_str = "Disabled"
 
     client_online = client["online"]
