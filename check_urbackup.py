@@ -1,5 +1,5 @@
 # !/usr/bin/env python3.8
-# Written By:Tal Bar-Or'
+# Written By: Xtek
 # Created - 21/12/2016
 # check_urbackup for backup status
 # Ver 0.3import urbackup_api
@@ -9,7 +9,6 @@ import urbackup_api
 import datetime
 import sys
 import argparse
-import json
 
 ClientPrint = ""
 GlobalStatus = []
@@ -18,7 +17,6 @@ Globelstat = ""
 
 def Statuscheck(client):
     global ClientPrint
-    delete_pending = client["delete_pending"] == 0
     if "file_disabled" not in client:
         client["file_disabled"] = False
     if "image_disabled" not in client:
@@ -86,25 +84,28 @@ if args.host or args.user or args.password:
             if "Critical" in Globelstat:
                 # print(Globelstat)
                 print("CRITICAL")
-                break
+                print(ClientPrint)
+                sys.exit(2)
             elif "Warning" in Globelstat:
                 # print(Globelstat)
                 print("WARNING")
-                break
+                print(ClientPrint)
+                sys.exit(1)
             elif "OK" in Globelstat:
                 # print(Globelstat)
                 print("OK")
-                break
+                print(ClientPrint)
+                sys.exit(0)
             else:
                 print("UNKOWN")
-                break
-        print(ClientPrint)
+                print(ClientPrint)
+                sys.exit(3)
     except Exception as e:
         print("Error Occured: ", e)
 
 
 elif args.version:
-    print('1.0 Urback Check ,Written By:Tal Bar-Or')
+    print('1.1 Urback Check, Written By: Xtek')
     sys.exit()
 else:
     print("please run check --host <IP OR HOSTNAME> --user <username> --password <password>" + '\n or use --help')
