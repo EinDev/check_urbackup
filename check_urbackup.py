@@ -74,7 +74,7 @@ def Statuscheck(client):
             if not image_ok:
                 ClientPrint += ", "
         if not image_ok:
-            ClientPrint += f"LastFileBackup: {last_image_backup_str}, FileStatus: {image_str}"
+            ClientPrint += f"LastImageBackup: {last_image_backup_str}, ImageStatus: {image_str}"
     return client_status
 
 
@@ -95,22 +95,19 @@ if args.host or args.user or args.password:
         while True:
             if "Critical" in Globelstat:
                 # print(Globelstat)
-                print("CRITICAL")
-                print(ClientPrint)
+                print("CRITICAL: " + ClientPrint)
                 sys.exit(2)
             elif "Warning" in Globelstat:
                 # print(Globelstat)
-                print("WARNING")
+                print("WARNING: " + ClientPrint)
                 print(ClientPrint)
                 sys.exit(1)
             elif "OK" in Globelstat:
                 # print(Globelstat)
                 print("OK")
-                print(ClientPrint)
                 sys.exit(0)
             else:
-                print("UNKOWN")
-                print(ClientPrint)
+                print("UNKOWN: " + ClientPrint)
                 sys.exit(3)
     except Exception as e:
         print("Error Occured: ", e)
