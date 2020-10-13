@@ -1,4 +1,5 @@
 #!/usr/bin/env python3.8
+
 # Written By: Timon Michel (Xtek)
 # Based on: tbaror/check_urbackup by Tal Bar-Or
 # Created - 21/12/2016
@@ -6,8 +7,11 @@
 # Ver 0.3 import urbackup_api
 # simple script to check Urbackup backup status used by https://github.com/uroni/urbackup-server-python-web-api-wrapper
 # source code found at https://bitbucket.org/tal_bar_or/check_urbackup
+
 import sys
+
 sys.path.insert(0, '/usr/lib/python3.8')
+
 import urbackup_api
 import datetime
 import argparse
