@@ -67,8 +67,12 @@ def Statuscheck(client):
             client_status = "Critical"
     if client_status != "OK":
         ClientPrint += f"HostName: {client_name}, Online: {client_online}, Status: {client_status}, "
+        if not file_ok or not image_ok:
+            ClientPrint += ", "
         if not file_ok:
-            ClientPrint += f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}, "
+            ClientPrint += f"LastFileBackup: {last_file_backup_str}, FileStatus: {file_str}"
+            if not image_ok:
+                ClientPrint += ", "
         if not image_ok:
             ClientPrint += f"LastFileBackup: {last_image_backup_str}, FileStatus: {image_str}"
     return client_status
