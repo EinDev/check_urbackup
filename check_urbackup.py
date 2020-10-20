@@ -16,6 +16,7 @@ import urbackup_api
 import datetime
 import argparse
 from enum import Enum
+import re
 
 
 class BackupStatus(Enum):
@@ -90,20 +91,23 @@ def get_status(client_data) -> (BackupStatus, str):
 
 
 # Gets the global status and details from get_status()
-def get_global_status(client_array):
+# client_pattern is a regex-pattern for client name(s)
+def get_global_status(client_array, client_pattern: str = ".*"):
     global_details = ""
+    regex = re.compile(client_pattern)
     global_status = BackupStatus.OK
     for client in client_array:
-        client_status, client_details = get_status(client)
-        if client_status == BackupStatus.OK:
-            continue
-        # If the global_status is CRITICAL, we don't want to change it back to WARNING
-        elif client_status == BackupStatus.WARNING and global_status != BackupStatus.CRITICAL:
-            global_status = BackupStatus.WARNING
-            global_details += client_details + "\n"
-        else:
-            global_status = BackupStatus.CRITICAL
-            global_details += client_details + "\n"
+        if regex.fullmatch(client["name"]):
+            client_status, client_details = get_status(client)
+            if client_status == BackupStatus.OK:
+                continue
+            # If the global_status is CRITICAL, we don't want to change it back to WARNING
+            elif client_status == BackupStatus.WARNING and global_status != BackupStatus.CRITICAL:
+                global_status = BackupStatus.WARNING
+                global_details += client_details + "\n"
+            else:
+                global_status = BackupStatus.CRITICAL
+                global_details += client_details + "\n"
     return global_status
 
 
@@ -112,13 +116,15 @@ parser.add_argument('--version', '-v', action="store_true", help='show agent ver
 parser.add_argument('--host', '-ho', action="append", help='host name or IP')
 parser.add_argument('--user', '-u', action="append", help='User name for Urbackup server')
 parser.add_argument('--password', '-p', action="append", help='user password for Urbackup server')
+parser.add_argument('--client', '-c', action="append", help='backup client name (Regular Expression)')
 args = parser.parse_args()
 
 if args.host:
     try:
         server = urbackup_api.urbackup_server("http://" + args.host[0] + ":55414/x", args.user[0], args.password[0])
         clients = server.get_status()
-        status, details = get_global_status(clients)
+        client_regex = args.client or ".*"
+        status, details = get_global_status(clients, client_regex)
         if status == BackupStatus.CRITICAL:
             print("CRITICAL: " + details)
             sys.exit(2)
@@ -138,5 +144,6 @@ elif args.version:
     print('1.1 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or')
     sys.exit()
 else:
-    print("please run check --host <IP OR HOSTNAME> [--user <username>] [--password <password>]" + '\n or use --help')
+    print("please run check --host <IP OR HOSTNAME> [--user <username>] [--password <password>] [--client <client_regex>]"
+          "\nor use --help")
     sys.exit()
