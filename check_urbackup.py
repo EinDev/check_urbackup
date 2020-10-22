@@ -13,7 +13,7 @@ import sys
 sys.path.insert(0, '/usr/lib/python3.8')
 
 import urbackup_api
-import datetime
+from datetime import datetime
 import argparse
 from enum import Enum
 import re
@@ -27,7 +27,8 @@ class BackupStatus(Enum):
 
 # Parses a backup client's status using the data provided by the UrBackup server
 # Returns: The BackupStatus of the client and a description if not OK
-def get_status(client_data) -> (BackupStatus, str):
+# max_fage and max_iage are the maximum image and file backup age (in days)
+def get_status(client_data, maxfiledays, maximagedays) -> (BackupStatus, str):
     # If a backup is disabled, "*_disabled" is not set - we don't want a KeyError
     if "file_disabled" not in client_data:
         client_data["file_disabled"] = False
@@ -36,58 +37,88 @@ def get_status(client_data) -> (BackupStatus, str):
 
     # Don't set file_ok to False if file_disabled is True
     if not client_data["file_ok"] and not client_data["file_disabled"]:
-        file_ok = False
+        file_failed = True
         file_str = "No recent backup"
     elif client_data["file_ok"]:
-        file_ok = True
+        file_failed = False
         file_str = "OK"
     else:
-        file_ok = True
+        file_failed = False
         file_str = "Disabled"
 
     # Don't set image_ok to False if image_disabled is True
     if not client_data["image_ok"] and not client_data["image_disabled"]:
-        image_ok = False
+        image_failed = True
         image_str = "No recent backup"
     elif client_data["image_ok"]:
-        image_ok = True
+        image_failed = False
         image_str = "OK"
     else:
-        image_ok = True
+        image_failed = False
         image_str = "Disabled"
 
     client_online = client_data["online"]
     client_name = client_data["name"]
-    last_file_backup = datetime.datetime.fromtimestamp(client_data["lastbackup"])
-    last_file_backup_str = last_file_backup.strftime("%x %X")
-    last_image_backup = datetime.datetime.fromtimestamp(client_data["lastbackup_image"])
-    last_image_backup_str = last_image_backup.strftime("%x %X")
+    last_file_backup = datetime.fromtimestamp(client_data["lastbackup"])
+    last_image_backup = datetime.fromtimestamp(client_data["lastbackup_image"])
+    file_old = is_file_old(client_data, maxfiledays) if maxfiledays else False
+    image_old = is_image_old(client_data, maximagedays) if maximagedays else False
 
     # Evaluate the backup status
+    # client offline:
+    #   backups OK? WARNING
+    #   backups old or failed? CRITICAL
+    # client online:
+    #   backups OK? OK
+    #   backups old or failed? CRITICAL
+    any_backup_failed = file_failed or image_failed
+    any_backup_old = file_old or image_old
     if not client_online:
-        if file_ok and image_ok:
-            client_status = BackupStatus.WARNING
-        else:
+        if any_backup_failed or any_backup_old:
             client_status = BackupStatus.CRITICAL
+        else:
+            client_status = BackupStatus.WARNING
     else:
-        if file_ok and image_ok:
+        if not any_backup_failed and not any_backup_old:
             client_status = BackupStatus.OK
         else:
             client_status = BackupStatus.CRITICAL
 
     # Get a short description of the failed backup type if failed
-    client_details = ""
+    client_details = []
     if client_status != BackupStatus.OK:
-        client_details += f"<b>HostName: {client_name}</b>, Online: {client_online}"
-        if not file_ok or not image_ok:
-            client_details += ", "
-        if not file_ok:
-            client_details += f"Last Filebackup: {last_file_backup_str}, <b>Status Filebackup: {file_str}</b>"
-            if not image_ok:
-                client_details += ", "
-        if not image_ok:
-            client_details += f"Last Imagebackup: {last_image_backup_str}, <b>Status Imagebackup: {image_str}</b>"
-    return client_status, client_details
+        # Short description of the client
+        client_details.append(f"<b>HostName: {client_name}</b>, Online: {client_online}")
+
+        # File backup information, if failed or old
+        if file_old:
+            client_details.append(f"<b>Last Filebackup: {last_file_backup.strftime('%x %X')}</b>")
+        if file_failed:
+            client_details.append(f"<b>Status Filebackup: {file_str}</b>")
+
+        # Image backup information, if failed or old
+        if image_old:
+            client_details.append(f"<b>Last Imagebackup: {last_image_backup.strftime('%x %X')}</b>")
+        if image_failed:
+            client_details.append(f"<b>Status Imagebackup: {image_str}</b>")
+
+    return client_status, ", ".join(client_details)
+
+
+def is_file_old(client_data, max_days):
+    disabled = client_data["file_disabled"]
+    last_backup = datetime.fromtimestamp(client_data["lastbackup"])
+    diff = datetime.now() - last_backup
+    diff_hours = int(diff.seconds / 60 / 60)
+    return diff_hours / 24 > max_days and not disabled
+
+
+def is_image_old(client_data, max_days):
+    disabled = client_data["image_disabled"]
+    last_backup = datetime.fromtimestamp(client_data["lastbackup_image"])
+    diff = datetime.now() - last_backup
+    diff_hours = int(diff.seconds / 60 / 60)
+    return diff_hours / 24 > max_days and not disabled
 
 
 # Gets the global status and details from get_status()
@@ -98,7 +129,7 @@ def get_global_status(client_array, client_pattern: str = ".*"):
     global_status = BackupStatus.OK
     for client in client_array:
         if regex.fullmatch(client["name"]):
-            client_status, client_details = get_status(client)
+            client_status, client_details = get_status(client, args.maxfiledays, args.maximagedays)
             if client_status == BackupStatus.OK:
                 continue
             # If the global_status is CRITICAL, we don't want to change it back to WARNING
@@ -117,6 +148,8 @@ parser.add_argument('--host', '-ho', action="append", help='host name or IP')
 parser.add_argument('--user', '-u', action="append", help='User name for Urbackup server')
 parser.add_argument('--password', '-p', action="append", help='user password for Urbackup server')
 parser.add_argument('--client', '-c', action="append", help='backup client name (Regular Expression)')
+parser.add_argument('--maxfiledays', '-f', action="append", help='maximum age of file backup')
+parser.add_argument('--maximagedays', '-i', action="append", help='maximum age of image backup')
 args = parser.parse_args()
 
 if args.host:
