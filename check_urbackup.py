@@ -142,42 +142,37 @@ def get_global_status(client_array, client_pattern: str = ".*"):
     return global_status, global_details
 
 
+def check_positive(value):
+    ivalue = int(value)
+    if ivalue <= 0:
+        raise argparse.ArgumentTypeError("%s is an invalid positive int value" % value)
+    return ivalue
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--version', '-v', action="store_true", help='show agent version')
-parser.add_argument('--host', '-ho', action="append", help='host name or IP')
-parser.add_argument('--user', '-u', action="append", help='User name for Urbackup server')
-parser.add_argument('--password', '-p', action="append", help='user password for Urbackup server')
-parser.add_argument('--client', '-c', action="append", help='backup client name (Regular Expression)')
-parser.add_argument('--maxfiledays', '-f', action="append", help='maximum age of file backup')
-parser.add_argument('--maximagedays', '-i', action="append", help='maximum age of image backup')
+
+parser = argparse.ArgumentParser(description="1.1 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or")
+parser.add_argument('--user', '-u', metavar='<username>', help='User name for Urbackup server')
+parser.add_argument('--password', '-p', metavar='<password>', help='user password for Urbackup server')
+parser.add_argument('--client', '-c', metavar='<regex>', default=".*", help='backup client name (Regular Expression)')
+parser.add_argument('--maxfiledays', '-f', metavar='<count>', type=check_positive, help='maximum age of file backup')
+parser.add_argument('--maximagedays', '-i', metavar='<count>', type=check_positive, help='maximum age of image backup')
+parser.add_argument('address', metavar='http[s]://<hostname>:<port>', help='full address of the Urbackup webinterface, without trailing slash')
 args = parser.parse_args()
 
-if args.host:
-    try:
-        server = urbackup_api.urbackup_server("http://" + args.host[0] + ":55414/x", args.user[0], args.password[0])
-        clients = server.get_status()
-        client_regex = args.client or ".*"
-        status, details = get_global_status(clients, client_regex)
-        if status == BackupStatus.CRITICAL:
-            print("CRITICAL: " + details)
-            sys.exit(2)
-        elif status == BackupStatus.WARNING:
-            print("WARNING: " + details)
-            sys.exit(1)
-        elif status == BackupStatus.OK:
-            print("OK")
-            sys.exit(0)
-    except Exception as e:
-        print("Error Occured: ", e)
-    print("UNKOWN")
-    sys.exit(3)
-
-
-elif args.version:
-    print('1.1 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or')
-    sys.exit()
-else:
-    print("please run check --host <IP OR HOSTNAME> [--user <username>] [--password <password>] [--client <client_regex>]"
-          "\nor use --help")
-    sys.exit()
+try:
+    server = urbackup_api.urbackup_server(args.address + "/x", args.user, args.password)
+    clients = server.get_status()
+    client_regex = args.client
+    status, details = get_global_status(clients, client_regex)
+    if status == BackupStatus.CRITICAL:
+        print("CRITICAL: " + details)
+        sys.exit(2)
+    elif status == BackupStatus.WARNING:
+        print("WARNING: " + details)
+        sys.exit(1)
+    elif status == BackupStatus.OK:
+        print("OK")
+        sys.exit(0)
+except Exception as e:
+    print("Error Occured: ", e)
+print("UNKOWN")
+sys.exit(3)
