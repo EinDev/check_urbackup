@@ -139,7 +139,8 @@ def get_global_status(client_array, client_pattern: str = ".*"):
             else:
                 global_status = BackupStatus.CRITICAL
                 global_details += client_details + "\n"
-    return global_status
+    return global_status, global_details
+
 
 
 parser = argparse.ArgumentParser()
