@@ -1,5 +1,5 @@
 #!/usr/bin/env python3.8
-# Version: 0.1
+# Version: 1.2
 # Written By: Timon Michel (Xtek)
 # Based on: tbaror/check_urbackup by Tal Bar-Or
 # Last Modified - 15/10/2020
@@ -26,10 +26,19 @@ class BackupStatus(Enum):
     CRITICAL = 2
 
 
+class BackupStatusResponse:
+    status: BackupStatus
+    error: str
+
+    def __init__(self, status: BackupStatus, error: str):
+        self.status = status
+        self.error = error
+
+
 # Parses a backup client's status using the data provided by the UrBackup server
 # Returns: The BackupStatus of the client and a description if not OK
 # max_fage and max_iage are the maximum image and file backup age (in days)
-def get_status(client_data, maxfiledays, maximagedays) -> (BackupStatus, str):
+def get_status(client_data, maxfiledays, maximagedays) -> BackupStatusResponse:
     # If a backup is disabled, "*_disabled" is not set - we don't want a KeyError
     if "file_disabled" not in client_data:
         client_data["file_disabled"] = False
@@ -102,8 +111,8 @@ def get_status(client_data, maxfiledays, maximagedays) -> (BackupStatus, str):
             client_details.append(f"<b>Last Imagebackup: {last_image_backup.strftime('%x %X')}</b>")
         if image_failed:
             client_details.append(f"<b>Status Imagebackup: {image_str}</b>")
-
-    return client_status, ", ".join(client_details)
+    data = ", ".join(client_details)
+    return BackupStatusResponse(client_status, data)
 
 
 def is_file_old(client_data, max_days):
@@ -128,19 +137,27 @@ def get_global_status(client_array, client_pattern: str = ".*"):
     global_details = ""
     regex = re.compile(client_pattern)
     global_status = BackupStatus.OK
+    global_count = {
+        BackupStatus.OK: 0,
+        BackupStatus.WARNING: 0,
+        BackupStatus.CRITICAL: 0,
+        "all": 0
+    }
     for client in client_array:
         if regex.fullmatch(client["name"]):
-            client_status, client_details = get_status(client, args.maxfiledays, args.maximagedays)
-            if client_status == BackupStatus.OK:
+            status = get_status(client, args.maxfiledays, args.maximagedays)
+            global_count[status.status] += 1
+            global_count["all"] += 1
+            if status.status == BackupStatus.OK:
                 continue
             # If the global_status is CRITICAL, we don't want to change it back to WARNING
-            elif client_status == BackupStatus.WARNING and global_status != BackupStatus.CRITICAL:
+            elif status.status == BackupStatus.WARNING and global_status != BackupStatus.CRITICAL:
                 global_status = BackupStatus.WARNING
-                global_details += client_details + "\n"
+                global_details += status.error + "\n"
             else:
                 global_status = BackupStatus.CRITICAL
-                global_details += client_details + "\n"
-    return global_status, global_details
+                global_details += status.error + "\n"
+    return global_status, global_details, global_count
 
 
 def check_positive(value):
@@ -150,7 +167,7 @@ def check_positive(value):
     return ivalue
 
 
-parser = argparse.ArgumentParser(description="1.1 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or")
+parser = argparse.ArgumentParser(description="1.2 Urback Check, Written By: Timon Michel (Xtek), Based on: tbaror/check_urbackup by Tal Bar-Or")
 parser.add_argument('--user', '-u', metavar='<username>', help='User name for Urbackup server')
 parser.add_argument('--password', '-p', metavar='<password>', help='user password for Urbackup server')
 parser.add_argument('--client', '-c', metavar='<regex>', default=".*", help='backup client name (Regular Expression)')
@@ -163,15 +180,17 @@ try:
     server = urbackup_api.urbackup_server(args.address + "/x", args.user, args.password)
     clients = server.get_status()
     client_regex = args.client
-    status, details = get_global_status(clients, client_regex)
+    status, details, count = get_global_status(clients, client_regex)
     if status == BackupStatus.CRITICAL:
-        print("CRITICAL: " + details)
+        print("%i/%i OK, %i WARNING, %i CRITICAL" % (status[BackupStatus.OK], status["all"], status[BackupStatus.WARNING], status[BackupStatus.CRITICAL]))
+        print(details)
         sys.exit(2)
     elif status == BackupStatus.WARNING:
-        print("WARNING: " + details)
+        print("%i/%i OK, %i WARNING" % (status[BackupStatus.OK], status["all"], status[BackupStatus.WARNING]))
+        print(details)
         sys.exit(1)
     elif status == BackupStatus.OK:
-        print("OK")
+        print("%i/%i OK" % (status[BackupStatus.OK], status["all"]))
         sys.exit(0)
 except Exception as e:
     print("Error Occured: ", e)
